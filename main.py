@@ -1,12 +1,14 @@
 import tkinter as tk
+from tkinter import font as tkfont
 import threading
 import queue
+import textwrap
 import logging
 
 from listen_speech import recognize_speech_stream
 from parse_reference import extract_reference_numbers
 from get_book_from_db import load_book_content
-from config import LOG_FILE_PATH
+from config import LOG_FILE_PATH, WIDTH, HEIGHT, FONT_FAMILY, FONT_COLOR, BG_COLOR, FONT_SMALL
 
 
 # Configure logging
@@ -34,23 +36,31 @@ def main():
 
     The GUI polls the speech recognition queue every 100ms and updates accordingly.
     """
-    output_queue = queue.Queue()
 
-    # Start listening in background thread
-    threading.Thread(target=recognize_speech_stream, args=(output_queue,), daemon=True, name="SpeechListener").start()
+    def fit_wrapped_text_to_label(label, text: str) -> None:
+        """Dynamically fits the verse text to a Tkinter Label using font sizing and word wrapping."""
+        max_font_size = 100
+        min_font_size = 5
 
-    # Setup tkinter window
-    root = tk.Tk()
-    root.title("Біблія (переклад Турконяка 2020)")
-    root.geometry("500x400")
-    root.configure(bg='#2e2e2e')
+        for size in range(max_font_size, min_font_size - 1, -1):
+            try:
+                fnt = tkfont.Font(family=FONT_FAMILY, size=size)
+            except tk.TclError:
+                fnt = tkfont.Font(size=size)  # Default system font
+            char_width = fnt.measure("M")  # Rough width of one character
+            line_height = fnt.metrics("linespace")
 
-    output_label = tk.Label(root, text="", wraplength=450, justify="left",
-                            bg="#2e2e2e", fg="#ffffff", font=("Courier New", 12, "italic"))
-    output_label.pack(pady=20)
-    output_label_bottom = tk.Label(root, text="", wraplength=350, justify="left",
-                                   bg="#2e2e2e", fg="#bbbbbb", font=("Helvetica", 8))
-    output_label_bottom.pack(pady=20)
+            chars_per_line = max(WIDTH // char_width, 1)
+            lines_fit = max(HEIGHT // line_height, 1)
+
+            # Wrap text
+            wrapped = textwrap.fill(text, width=chars_per_line)
+
+            # Count lines
+            actual_lines = wrapped.count('\n') + 1
+            if actual_lines <= lines_fit:
+                label.config(text=wrapped, font=fnt)
+                break
 
     # Function to poll the queue and update the label
     def poll_queue():
@@ -66,7 +76,7 @@ def main():
                     continue
 
                 book_name, output_text = load_book_content(book, chapter, verse)
-                output_label.config(text=output_text)
+                fit_wrapped_text_to_label(output_label, output_text)
                 output_label_bottom.config(text=f"{book_name.title()} - {chapter}: {verse}")
 
         except queue.Empty:
@@ -76,6 +86,26 @@ def main():
     def on_close():
         print("👋 Exiting application...")
         root.destroy()
+
+    output_queue = queue.Queue()
+
+    # Start listening in background thread
+    threading.Thread(target=recognize_speech_stream, args=(output_queue,), daemon=True, name="SpeechListener").start()
+
+    # Setup tkinter window
+    root = tk.Tk()
+    root.title("Біблія (переклад Турконяка 2020)")
+    root.geometry(f"{WIDTH + 20}x{HEIGHT+80}")
+    root.configure(bg=BG_COLOR)
+
+    output_label = tk.Label(
+        root, text="", justify="left", bg=BG_COLOR, fg=FONT_COLOR, anchor="center", wraplength=WIDTH
+    )
+    output_label.pack(pady=20)
+    output_label_bottom = tk.Label(
+        root, text="", justify="left", bg=BG_COLOR, fg=FONT_COLOR, font=FONT_SMALL, wraplength=WIDTH
+    )
+    output_label_bottom.pack(pady=20)
 
     root.protocol("WM_DELETE_WINDOW", on_close)
     poll_queue()

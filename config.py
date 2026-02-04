@@ -9,6 +9,8 @@ LOG_FILE_PATH = 'error.log'
 WIDTH = 600
 HEIGHT = 300
 
+QUEUE_TIMEOUT = 0.1
+
 FONT_FAMILY = "Courier"
 FONT_SMALL = ("Arial", 8)
 

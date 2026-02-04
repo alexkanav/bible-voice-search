@@ -3,7 +3,6 @@ import logging
 
 from string_to_number import ukrainian_to_number, TENS
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -50,7 +49,6 @@ def extract_reference_numbers(text: str) -> tuple[int, int, int]:
                 verse = ukrainian_to_number(chapter_verse_list[1]) + ukrainian_to_number(chapter_verse_list[2])
 
     except Exception as e:
-        logger.exception("❌ Failed to parse Bible reference from text")
+        logger.exception("❌ Failed to parse Bible reference from text: %r", text)
 
     return book, chapter, verse
-

@@ -1,7 +1,7 @@
 import logging
 import re
 
-from utils.number_parser import ukrainian_to_number, TENS
+from utils.number_parser import ukrainian_to_number, TENS, ONES
 
 logger = logging.getLogger(__name__)
 
@@ -32,38 +32,36 @@ def extract_reference_numbers(text: str) -> tuple[int, int, int]:
             r"\bкниг[аио]?\b", "", split_text[0], flags=re.IGNORECASE
         ).strip()
         book = ukrainian_to_number(book_text)
+
         chapter_verse_txt = split_text[1].strip()
 
-        if "сто" in chapter_verse_txt:
-            chapter_verse_list = chapter_verse_txt.split("сто")
-            chapter = ukrainian_to_number(chapter_verse_list[0])
-            verse = ukrainian_to_number(chapter_verse_list[1]) + 100
-            return book, chapter, verse
+        parts = re.split(r"\bсто\b", chapter_verse_txt, flags=re.IGNORECASE)
+        if len(parts) == 2:
+            chapter, verse = parts
+            return book, ukrainian_to_number(chapter), ukrainian_to_number(verse) + 100 if verse else 100,
 
-        chapter_verse_list = chapter_verse_txt.split()
-        if len(chapter_verse_list) == 2:
-            chapter = ukrainian_to_number(chapter_verse_list[0])
-            verse = ukrainian_to_number(chapter_verse_list[1])
-        elif len(chapter_verse_list) == 4:
-            chapter = ukrainian_to_number(chapter_verse_list[0]) + ukrainian_to_number(
-                chapter_verse_list[1]
-            )
-            verse = ukrainian_to_number(chapter_verse_list[2]) + ukrainian_to_number(
-                chapter_verse_list[3]
-            )
-        elif len(chapter_verse_list) == 3:
-            if chapter_verse_list[0] in TENS:
-                chapter = ukrainian_to_number(
-                    chapter_verse_list[0]
-                ) + ukrainian_to_number(chapter_verse_list[1])
-                verse = ukrainian_to_number(chapter_verse_list[2])
-            else:
-                chapter = ukrainian_to_number(chapter_verse_list[0])
-                verse = ukrainian_to_number(
-                    chapter_verse_list[1]
-                ) + ukrainian_to_number(chapter_verse_list[2])
+        words = chapter_verse_txt.split()
 
-    except Exception:
-        logger.exception("❌ Failed to parse Bible reference from text: %r", text)
+        match len(words):
+            case 2:
+                chapter, verse = words
 
-    return book, chapter, verse
+            case 3:
+                if words[0] in TENS and words[1] in ONES:
+                    chapter = " ".join(words[:2])
+                    verse = words[2]
+                else:
+                    chapter = words[0]
+                    verse = " ".join(words[1:])
+
+            case 4:
+                chapter = " ".join(words[:2])
+                verse = " ".join(words[2:])
+
+            case _:
+                return 0, 0, 0
+
+    except ValueError:
+        logger.exception("Failed to parse Bible reference from text: %r", text)
+
+    return book, ukrainian_to_number(chapter), ukrainian_to_number(verse)

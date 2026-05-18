@@ -1,7 +1,3 @@
-import logging
-
-logger = logging.getLogger(__name__)
-
 ONES = {
     "нуль": 0,
     "один": 1,
@@ -40,29 +36,39 @@ TENS = {
     "дев'яносто": 90,
 }
 
+NUMBER_WORDS = ONES | TEENS | TENS
+
 
 def ukrainian_to_number(text: str) -> int:
     """
-    Converts a Ukrainian number phrase (up to 99) into an integer.
+    Converts a Ukrainian number phrase (0–99) into an integer.
 
     Args:
-        text (str): Ukrainian number string.
+        text (str): Ukrainian number phrase.
 
     Returns:
-        int: Numeric value of the input string. Returns 0 if no valid words found.
+        int: Numeric value of the input phrase.
+
+    Raises:
+        ValueError: If the phrase is invalid or unsupported.
     """
-    words = text.strip().lower().split()
+    words = text.strip().lower().replace("’", "'").replace("`", "'").split()
 
-    number = 0
+    if len(words) == 1:
+        number = NUMBER_WORDS.get(words[0])
 
-    for word in words:
-        if word in TEENS:
-            number += TEENS[word]
-        elif word in TENS:
-            number += TENS[word]
-        elif word in ONES:
-            number += ONES[word]
-        else:
-            logger.error(f"Unknown number: {word}")
+        if number is None:
+            raise ValueError(f"Unknown number: {words[0]}")
 
-    return number
+        return number
+
+    if len(words) == 2:
+        tens = TENS.get(words[0])
+        ones = ONES.get(words[1])
+
+        if tens is None or ones is None:
+            raise ValueError(f"Invalid number phrase: {text}")
+
+        return tens + ones
+
+    raise ValueError(f"Unsupported number format (0–99 only): {text}")

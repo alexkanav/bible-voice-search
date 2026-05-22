@@ -25,9 +25,9 @@ def fit_text_to_box(
         chars_per_line = max(config.label_width // char_width, 1)
         lines_fit = max(config.label_height // line_height, 1)
 
-        wrapped_text = textwrap.fill(
-            text,
-            width=chars_per_line,
+        wrapper = textwrap.TextWrapper(width=chars_per_line, replace_whitespace=False)
+        wrapped_text = "\n".join(
+            wrapper.fill(line) for line in text.splitlines()
         )
 
         actual_lines = wrapped_text.count("\n") + 1

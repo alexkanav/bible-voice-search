@@ -5,50 +5,48 @@ from tkinter import font as tkfont
 
 from config import AppConfig
 from services.bible_service import BibleService
-from services.speech_listener import SpeechListener
+from utils.verses_formatter import format_verses
 
 
 class BibleApp:
     def __init__(
         self,
-        output_queue: queue.Queue,
-        listener: SpeechListener,
+        output_queue: queue.Queue[str],
         service: BibleService,
         text_layout: Callable[[str, AppConfig], tuple[str, tkfont.Font]],
         config: AppConfig,
-    ):
+    ) -> None:
         self.output_queue = output_queue
-        self.listener = listener
         self.service = service
         self.text_layout = text_layout
         self.config = config
 
         self.root = tk.Tk()
-        self.root.title(config.title)
-        self.root.geometry(config.geometry)
-        self.root.configure(bg=config.theme["bg"])
+        self.root.title(self.config.title)
+        self.root.geometry(self.config.geometry)
+        self.root.configure(bg=self.config.theme["bg"])
 
-        self.output_label = tk.Label(
+        self.main_label = tk.Label(
             self.root,
             text="",
             justify="left",
-            bg=config.theme["bg"],
-            fg=config.theme["fg"],
+            bg=self.config.theme["bg"],
+            fg=self.config.theme["fg"],
             anchor="center",
-            wraplength=config.label_width,
+            wraplength=self.config.label_width,
         )
-        self.output_label.pack(side="top", pady=(self.config.label_margin, 0))
+        self.main_label.pack(side="top", pady=(self.config.label_margin, 0))
 
-        self.output_label_bottom = tk.Label(
+        self.footer_label = tk.Label(
             self.root,
             text="",
             justify="left",
-            bg=config.theme["bg"],
-            fg=config.theme["fg"],
-            font=config.reference_font,
-            wraplength=config.label_width,
+            bg=self.config.theme["bg"],
+            fg=self.config.theme["fg"],
+            font=self.config.footer_font,
+            wraplength=self.config.label_width,
         )
-        self.output_label_bottom.pack(side="bottom", pady=(0, self.config.label_margin))
+        self.footer_label.pack(side="bottom", pady=(0, self.config.label_margin))
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -59,33 +57,44 @@ class BibleApp:
 
                 result = self.service.process_reference(text)
 
-                if not result["success"]:
-                    self.output_label.config(text=result["message"])
-                    self.output_label_bottom.config(text=text)
+                if result.error:
+                    self.main_label.config(
+                        text=result.error,
+                        fg=self.config.error_fg,
+                        font=self.config.error_font,
+                    )
+                    self.footer_label.config(text=result.input_text)
                     continue
 
+                text = format_verses(result.verses)
+
                 wrapped_text, font = self.text_layout(
-                    result["text"],
+                    text,
                     self.config,
                 )
 
-                self.output_label.config(text=wrapped_text, font=font)
+                self.main_label.config(
+                    text=wrapped_text, fg=self.config.theme["fg"], font=font
+                )
 
-                self.output_label_bottom.config(
-                    text=f"{result['book_name']} - "
-                    f"{result['chapter']}: "
-                    f"{result['verse']}"
+                self.footer_label.config(
+                    text=f"{result.book_name} - "
+                    f"{result.chapter}: "
+                    f"{result.start_verse}"
                 )
 
         except queue.Empty:
             pass
 
-        self.root.after(100, self.poll_queue)
+        self.root.after(
+            int(self.config.queue_timeout * 1000),
+            self.poll_queue,
+        )
 
-    def run(self):
+    def run(self) -> None:
         self.poll_queue()
         self.root.mainloop()
 
-    def on_close(self):
+    def on_close(self) -> None:
         print("Exiting application...")
         self.root.destroy()

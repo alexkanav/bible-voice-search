@@ -1,21 +1,22 @@
 import sqlite3
 
+from models.bible_query_result import BibleQueryResult
 from utils.text_sanitizer import extract_plain_text
 
 
 class BibleRepository:
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, max_verses: int) -> None:
         self.db_path = db_path
+        self.max_verses = max_verses
 
     def get_verses(
         self,
         book: int,
         chapter: int,
-        verse_start: int,
-        verse_end: int | None = None,
-    ) -> tuple[str, str]:
-        if verse_end is None:
-            verse_end = verse_start
+        start_verse: int,
+        additional_verses: int = 0,
+    ) -> BibleQueryResult:
+        end_verse = start_verse + min(additional_verses, self.max_verses - 1)
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
@@ -28,7 +29,9 @@ class BibleRepository:
             row = cursor.fetchone()
 
             if not row:
-                return "Невідома Книга", "Вірш не знайдено."
+                return BibleQueryResult(
+                    error="Невідома Книга, Вірш не знайдено.",
+                )
 
             (book_name,) = row
 
@@ -41,13 +44,18 @@ class BibleRepository:
                 AND verse BETWEEN ? AND ?
                 ORDER BY verse
                 """,
-                (book, chapter, verse_start, verse_end),
+                (book, chapter, start_verse, end_verse),
             )
 
             rows = cursor.fetchall()
 
-            verses = [f"{verse}: {extract_plain_text(text)}" for verse, text in rows]
+            verses = [(verse, extract_plain_text(text)) for verse, text in rows]
             if not verses:
-                return book_name, "Вірш не знайдено."
+                return BibleQueryResult(
+                    error=f"{book_name}, Вірш не знайдено.",
+                )
 
-            return book_name, "\n\n".join(verses)
+            return BibleQueryResult(
+                book_name=book_name,
+                verses=verses,
+            )

@@ -16,7 +16,7 @@ class SpeechListener(threading.Thread):
         self,
         output_queue: queue.Queue,
         config: AppConfig,
-    ):
+    ) -> None:
         super().__init__(daemon=True)
 
         self.config = config

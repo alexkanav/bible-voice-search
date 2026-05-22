@@ -15,10 +15,13 @@ config = AppConfig()
 setup_logging(config.log_file_path, logging.ERROR)
 
 
-def main():
+def main() -> None:
     output_queue = queue.Queue()
 
-    repository = BibleRepository(config.db_path)
+    repository = BibleRepository(
+        db_path=config.db_path,
+        max_verses=config.max_verses,
+    )
 
     bible_service = BibleService(
         repository=repository,
@@ -33,7 +36,6 @@ def main():
 
     app = BibleApp(
         output_queue=output_queue,
-        listener=listener,
         service=bible_service,
         text_layout=fit_text_to_box,
         config=config,

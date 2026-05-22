@@ -36,11 +36,16 @@ class AppConfig:
     label_height: int = 300
     label_margin: int = 10
 
+    # Display
+    max_verses: int = 5
+
     # Fonts
     main_font_family: str = "Courier"
     max_font_size: int = 100
     min_font_size: int = 5
-    reference_font: tuple[str, int] = ("Arial", 8)
+    footer_font: tuple[str, int] = ("Arial", 8)
+    error_font: tuple[str, int] = ("Arial", 16)
+    error_fg: str = "#FF0000"
 
     # Theme
     theme_name: str = "dark"  # available: "dark", "light"
